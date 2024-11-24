@@ -9,9 +9,10 @@ Mean service time:          100.000000 seconds
 Stop accepting arrivals at: 86400.000000 seconds
 
 Simulation stats
-Number of customers lost:   4836 customers
-Total Customers:            12948 customers
-Blocking probability:       37.349396%
-Average server utilisation: 59.434872%
-Actual arrival rate:        13.345481 seconds
-Duration of simulation:     86692.359375 seconds
+Number of customers lost:   2714 customers
+Total Customers:            13154 customers
+Blocking probability:       20.632507%
+Handover failure:           2.143845%
+Average server utilisation: 74.721947%
+Actual arrival rate:        13.136573 seconds
+Duration of simulation:     86635.273438 seconds

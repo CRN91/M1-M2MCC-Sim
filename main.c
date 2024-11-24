@@ -9,7 +9,7 @@
 #define IDLE 0
 
 float mean_interarrival[2], mean_service, sim_clock, time_last_event, area_server_status, end_time, cumulative_arrival_rate;
-int customers_delayed, event_type, num_servers, customers_lost, threshold, free_servers;
+int customers_delayed, event_type, num_servers, customers_lost, threshold, free_servers, handovers_lost, total_handovers;
 int *server_status;
 float *event_list;
 
@@ -73,8 +73,10 @@ void initialise_sim(void)
 
   // Initialise Statistical Counters
   customers_delayed = 0;
+  total_handovers = 0;
   area_server_status = 0.0;
   customers_lost = 0;
+  handovers_lost = 0;
   cumulative_arrival_rate = 0;
 }
 
@@ -99,7 +101,7 @@ void write_report(FILE * report)
   float server_utilisation = area_server_status / sim_clock / num_servers;
   float total_customers = customers_lost + customers_delayed;
   float blocking_probability = (float)customers_lost / total_customers;
-  fprintf(report, "\nSimulation stats\nNumber of customers lost: %6d customers\nTotal Customers: %16d customers\nBlocking probability: %15f%%\nAverage server utilisation: %0f%%\nActual arrival rate: %16f seconds\nDuration of simulation: %16f seconds", customers_lost, (int)total_customers, blocking_probability*100, server_utilisation*100, cumulative_arrival_rate/total_customers, sim_clock);
+  fprintf(report, "\nSimulation stats\nNumber of customers lost: %6d customers\nTotal Customers: %16d customers\nBlocking probability: %15f%%\nHandover failure: %18f%%\nAverage server utilisation: %0f%%\nActual arrival rate: %16f seconds\nDuration of simulation: %16f seconds", customers_lost, (int)total_customers, blocking_probability*100, ((float)handovers_lost/(float)total_handovers)*100, server_utilisation*100, cumulative_arrival_rate/total_customers, sim_clock);
 }
 
 void write_csv(FILE * csv)
@@ -216,7 +218,10 @@ void arrive(int server_index, int priority)
   cumulative_arrival_rate += gen_arrival;
 
   // Decline non priority calls if there aren't enough servers
-  if ((priority == 0) && (free_servers > threshold)){
+  if ((priority == 0) && (free_servers <= threshold)){
+	// Customer is lost
+	customers_lost++;
+  } else {
     // Find an idle server
     int idle_server = find_idle_server();
 
@@ -233,11 +238,11 @@ void arrive(int server_index, int priority)
       *(event_list + idle_server + 3) = sim_clock + gen_rand_exponential(mean_service);
     } else {
       // Customer is lost
-	  customers_lost++;
+      customers_lost++;
+      if (priority == 1){
+        handovers_lost++;
+      }
     }
-  } else {
-	// Customer is lost from not being priority
-	customers_lost++;
   }
 }
 
@@ -293,6 +298,7 @@ void run_sim(void)
 	  arrive(event_type, 0);
 	  break;
 	case 2:
+	  total_handovers++;
 	  arrive(event_type, 1);
 	  break;
 	default:

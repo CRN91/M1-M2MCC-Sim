@@ -9,7 +9,7 @@
 #define IDLE 0
 
 float mean_interarrival[2], mean_service, sim_clock, time_last_event, area_server_status, end_time, cumulative_arrival_rate;
-int customers_delayed, event_type, num_servers, customers_lost;
+int customers_delayed, event_type, num_servers, customers_lost, threshold, free_servers;
 int *server_status;
 float *event_list;
 
@@ -35,6 +35,7 @@ void initialise_sim(void)
   // Initialise Sim Variables
   sim_clock = 0.0;
   time_last_event = 0;
+  free_servers = num_servers;
 
   // Allocate memory for the server status array
   server_status = (int* )malloc(num_servers * sizeof(int));
@@ -197,6 +198,7 @@ void depart(int server_index)
 
   // Make server idle
   server_status[server_index] = IDLE;
+  free_servers++;
 
   // Remove departure from consideration
   *(event_list + server_index + 3) = FLT_MAX;
@@ -213,21 +215,28 @@ void arrive(int server_index, int priority)
   *(event_list + 1 + priority) = (sim_clock + gen_arrival);
   cumulative_arrival_rate += gen_arrival;
 
-  // Find an idle server
-  int idle_server = find_idle_server();
+  // Decline non priority calls if there aren't enough servers
+  if ((priority == 0) && (free_servers > threshold)){
+    // Find an idle server
+    int idle_server = find_idle_server();
 
-  // If a server is available assign the customer to that server
-  if (idle_server != -1){
-    // Add 1 to customers delayed
-    customers_delayed++;
+    // If a server is available assign the customer to that server
+    if (idle_server != -1){
+      // Add 1 to customers delayed
+      customers_delayed++;
 
-    // Make server busy
-    *(server_status + idle_server) = BUSY;
+      // Make server busy
+      *(server_status + idle_server) = BUSY;
+      free_servers--;
 
-    // Schedule departure event for current customer
-    *(event_list + idle_server + 3) = sim_clock + gen_rand_exponential(mean_service);
+      // Schedule departure event for current customer
+      *(event_list + idle_server + 3) = sim_clock + gen_rand_exponential(mean_service);
+    } else {
+      // Customer is lost
+	  customers_lost++;
+    }
   } else {
-    // Customer is lost
+	// Customer is lost from not being priority
 	customers_lost++;
   }
 }
@@ -308,7 +317,7 @@ int main(void)
   }
 
   // Load input parameters
-  fscanf(config, "%f %f %f %f %d", &mean_interarrival[0], &mean_interarrival[1], &mean_service, &end_time, &num_servers);
+  fscanf(config, "%f %f %f %f %d %d", &mean_interarrival[0], &mean_interarrival[1], &mean_service, &end_time, &num_servers, &threshold);
   fclose(config);
 
   // Default behaviour is to run the sim once, if set to 0 will run 100 times which generates a csv I use for my coursework
@@ -316,7 +325,7 @@ int main(void)
   if (single_run == 1)
   {
     // Write heading of report
-	  fprintf(report, "M1 + M2/M/C/C Simulation Report\n\nInput parameters\nNumber of servers: %11d servers\nM1 mean interarrival time: %10f seconds\nM2 mean interarrival time: %10f seconds\nMean service time: %19f seconds\nStop accepting arrivals at: %f seconds\n",num_servers, mean_interarrival[0], mean_interarrival[1], mean_service, end_time);
+	  fprintf(report, "M1 + M2/M/C/C Simulation Report\n\nInput parameters\nNumber of servers: %11d servers\nPriority servers threshold: %d servers\nM1 mean interarrival time: %10f seconds\nM2 mean interarrival time: %10f seconds\nMean service time: %19f seconds\nStop accepting arrivals at: %f seconds\n",num_servers, threshold, mean_interarrival[0], mean_interarrival[1], mean_service, end_time);
 
     //Run the simulation
     run_sim();

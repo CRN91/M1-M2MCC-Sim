@@ -2,15 +2,16 @@ M1 + M2/M/C/C Simulation Report
 
 Input parameters
 Number of servers:          16 servers
+Priority servers threshold: 2 servers
 M1 mean interarrival time:  10.000000 seconds
 M2 mean interarrival time:  20.000000 seconds
 Mean service time:          100.000000 seconds
 Stop accepting arrivals at: 86400.000000 seconds
 
 Simulation stats
-Number of customers lost:   1854 customers
-Total Customers:            12778 customers
-Blocking probability:       14.509313%
-Average server utilisation: 79.271126%
-Actual arrival rate:        13.522282 seconds
-Duration of simulation:     86768.765625 seconds
+Number of customers lost:   4836 customers
+Total Customers:            12948 customers
+Blocking probability:       37.349396%
+Average server utilisation: 59.434872%
+Actual arrival rate:        13.345481 seconds
+Duration of simulation:     86692.359375 seconds

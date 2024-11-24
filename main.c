@@ -9,7 +9,7 @@
 #define IDLE 0
 
 float mean_interarrival[2], mean_service, sim_clock, time_last_event, area_server_status, end_time, cumulative_arrival_rate;
-int customers_delayed, event_type, num_servers, customers_lost, threshold, free_servers, handovers_lost, total_handovers;
+int event_type, num_servers, new_calls_lost, total_new_calls, threshold, free_servers, handovers_lost, total_handovers;
 int *server_status;
 float *event_list;
 
@@ -72,10 +72,10 @@ void initialise_sim(void)
   }
 
   // Initialise Statistical Counters
-  customers_delayed = 0;
+  total_new_calls = 0;
   total_handovers = 0;
   area_server_status = 0.0;
-  customers_lost = 0;
+  new_calls_lost = 0;
   handovers_lost = 0;
   cumulative_arrival_rate = 0;
 }
@@ -99,17 +99,18 @@ void write_report(FILE * report)
 {
   // Average delay and size in the queue and server utilisation | sim_clock should be total time at the end of the sim
   float server_utilisation = area_server_status / sim_clock / num_servers;
-  float total_customers = customers_lost + customers_delayed;
-  float blocking_probability = (float)customers_lost / total_customers;
-  fprintf(report, "\nSimulation stats\nNumber of customers lost: %6d customers\nTotal Customers: %16d customers\nBlocking probability: %15f%%\nHandover failure: %18f%%\nAverage server utilisation: %0f%%\nActual arrival rate: %16f seconds\nDuration of simulation: %16f seconds", customers_lost, (int)total_customers, blocking_probability*100, ((float)handovers_lost/(float)total_handovers)*100, server_utilisation*100, cumulative_arrival_rate/total_customers, sim_clock);
+  float blocking_probability = (float)new_calls_lost / total_new_calls;
+  float handover_failure_prob = (float)handovers_lost/(float)total_handovers;
+  int total_customers = total_handovers + total_new_calls;
+  fprintf(report, "\nSimulation stats\nNumber of customers lost: %11d customers\nTotal Customers: %21d customers\nCall Blocking probability: %15f%%\nHandover failure probability: %11f%%\nAggregated Blocking Probability: %f%%\nAverage server utilisation: %14f%%\nActual arrival rate: %21f seconds\nDuration of simulation: %21f seconds", new_calls_lost + handovers_lost, total_customers, blocking_probability*100, handover_failure_prob*100, blocking_probability + 10 * handover_failure_prob,server_utilisation*100, cumulative_arrival_rate/total_customers, sim_clock);
 }
 
 void write_csv(FILE * csv)
 {
   float server_utilisation = area_server_status / sim_clock / num_servers;
-  float total_customers = customers_lost + customers_delayed;
-  float blocking_probability = (float)customers_lost / total_customers;
-  fprintf(csv,"%f,%f,%f\n",cumulative_arrival_rate/total_customers,blocking_probability,server_utilisation);
+  float blocking_probability = (float)new_calls_lost / total_new_calls;
+  int total_customers = total_handovers + total_new_calls;
+  fprintf(csv,"%f,%f,%f\n",cumulative_arrival_rate/(float)total_customers, blocking_probability,server_utilisation);
 }
 
 /* Returns 1 if at least 1 server is busy and 0 if all servers are idle */
@@ -220,16 +221,13 @@ void arrive(int server_index, int priority)
   // Decline non priority calls if there aren't enough servers
   if ((priority == 0) && (free_servers <= threshold)){
 	// Customer is lost
-	customers_lost++;
+	new_calls_lost++;
   } else {
     // Find an idle server
     int idle_server = find_idle_server();
 
     // If a server is available assign the customer to that server
     if (idle_server != -1){
-      // Add 1 to customers delayed
-      customers_delayed++;
-
       // Make server busy
       *(server_status + idle_server) = BUSY;
       free_servers--;
@@ -238,9 +236,10 @@ void arrive(int server_index, int priority)
       *(event_list + idle_server + 3) = sim_clock + gen_rand_exponential(mean_service);
     } else {
       // Customer is lost
-      customers_lost++;
-      if (priority == 1){
-        handovers_lost++;
+      if (priority == 0){
+        new_calls_lost++;
+      } else {
+    	handovers_lost++;
       }
     }
   }
@@ -295,6 +294,7 @@ void run_sim(void)
 	case 0: // end time
 	  break;
 	case 1: // arrival
+	  total_new_calls++;
 	  arrive(event_type, 0);
 	  break;
 	case 2:
